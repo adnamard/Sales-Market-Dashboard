@@ -8,7 +8,7 @@ This dashboard provides data-driven insights to support business decision-making
 
 ## 🚀 Live Demo
 
-👉 [View Dashboard](https://your-streamlit-link.streamlit.app)
+👉 [View Dashboard](https://sales-market-dashboard-adnamar.streamlit.app/)
 
 ---
 
