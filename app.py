@@ -10,34 +10,61 @@ st.set_page_config(
     page_icon="🍽️",
     layout="wide"
 )
+st.markdown("""
+<style>
+.stApp {
+    background-color: #F4EFE6;
+}
+
+[data-testid="stSidebar"] {
+    background-color: #E8E0D3;
+}
+
+h1, h2, h3 {
+    color: #2D2D2D;
+}
+
+p, div, span, label {
+    color: #444444;
+}
+
+[data-testid="stMetricValue"] {
+    color: #1F4E5F;
+}
+</style>
+""", unsafe_allow_html=True)
 
 PRIMARY_COLOR = px.colors.sequential.Teal
 
 st.title("🍽️ Restaurant Sales Insight Dashboard")
-st.markdown(
-    """
-    Interactive dashboard to explore restaurant sales behavior, 
-    revenue drivers, and customer ordering patterns.
-    """
-)
+
+st.markdown("""
+### Understanding customer behavior, revenue drivers, and operational opportunities
+
+This dashboard explores restaurant transaction data to answer four key business questions:
+
+- Who are the most valuable customers?
+- Which categories generate the most revenue?
+- Which products drive demand?
+- When are customers most active?
+
+The goal is to translate transaction data into actionable business insights.
+""")
 
 
 @st.cache_data
 def load_data():
     df = pd.read_csv("restaurant_data.csv")
     df["order_date"] = pd.to_datetime(df["order_date"])
-
     df["day"] = df["order_date"].dt.date
     df["weekday"] = df["order_date"].dt.day_name()
     df["week"] = df["order_date"].dt.isocalendar().week
     df["month"] = df["order_date"].dt.month
     df["year"] = df["order_date"].dt.year
-
     return df
 
 df = load_data()
 
-# -----------------------------------------------------
 # Sidebar Filters
 st.sidebar.header("🔎 Filters")
 
@@ -69,6 +96,9 @@ st.sidebar.markdown(
 
 # KPI Metrics
 # -----------------------------------------------------
+
+st.header("Executive Summary")
+
 col1, col2, col3 = st.columns(3)
 
 col1.metric(
@@ -85,22 +115,47 @@ col3.metric(
     "🧾 Avg Order Value",
     f"$ {filtered_df['order_total'].mean():,.2f}"
 )
+st.caption("""
+These metrics provide a high-level snapshot of restaurant performance.
+Next, we explore which customers and products are responsible for these results.
+""")
+
+
+st.header("Dataset Overview")
+
+left, right = st.columns([1,2])
+
+with left:
+    st.markdown("""
+    Before we dive into business insights, let's first understand the data.
+
+    The dataset contains restaurant transactions including:
+
+    - Customer information
+    - Menu categories
+    - Purchased items
+    - Revenue
+    - Order dates
+
+    This will be the foundation for all analyses presented below.
+    """)
+
+with right:
+    st.dataframe(
+        filtered_df.head(10),
+        use_container_width=True,
+    )
+    st.caption(
+    f"Dataset contains {len(filtered_df):,} filtered transactions."
+)
+
+
+# Customer Analysys
+# -----------------------------------------------------
 
 st.divider()
+st.header("👤 Customer Analysis")
 
-# Customer Analysis
-# -----------------------------------------------------
-st.header("Customer Analysis")
-
-st.markdown(
-    """
-    To better understand customer behavior, we segment customers into two distinct types 
-    based on **spending value** and **purchase frequency**.
-    """
-)
-st.subheader("💎 Biggest Spenders (Top 10)")
-st.markdown("""Customers who contribute **high total revenue**, even if they purchase 
-        **infrequently**.""")
 customer_revenue = (
     filtered_df
     .groupby("cust_id", as_index=False)
@@ -111,13 +166,27 @@ customer_revenue = (
 
 top_spender = customer_revenue.iloc[0]
 
-col1, col2 = st.columns([1, 2])
+left, right = st.columns([1,2])
 
-col1.metric(
-    label="Top Spender",
-    value=f"Customer {top_spender['cust_id']}",
-    delta=f"${top_spender['total_spent']:,.2f}"
-)
+with left:
+    st.subheader("A. Biggest Spenders")
+
+    st.markdown("""
+    Biggest spender often defined as a customers who contribute **high total revenue**, even if they purchase 
+        **infrequently**.
+    
+    Not all customers contribute equally.
+
+    A small portion of customers often generates a significant
+    share of total revenue.
+
+    Identifying these customers helps businesses:
+
+    - Improve retention
+    - Build loyalty programs
+    - Increase customer lifetime value
+    """)
+
 
 fig_spender = px.bar(
     customer_revenue,
@@ -135,14 +204,20 @@ fig_spender.update_layout(
     yaxis_title="Total Spending"
 )
 
-col2.plotly_chart(fig_spender, use_container_width=True)
+with right:
+    st.plotly_chart(
+        fig_spender,
+        use_container_width=True
+    )
+    st.metric(
+        label="Top Spender",
+        value=f"Customer {top_spender['cust_id']}",
+        delta=f"${top_spender['total_spent']:,.2f}"
+    )
 
-st.caption(
-    "Insight: A small number of customers contribute a disproportionate share of revenue."
-)
-st.subheader("🤝 Most Loyal Customers (Top 10)")
-st.markdown("""Customers who purchase **frequently**, creating stable and predictable revenue.
-""")
+st.divider()
+st.divider()
+
 customer_loyalty = (
     filtered_df
     .groupby("cust_id", as_index=False)
@@ -153,13 +228,21 @@ customer_loyalty = (
 
 most_loyal = customer_loyalty.iloc[0]
 
-col1, col2 = st.columns([1, 2])
+left, right = st.columns([1,2])
 
-col1.metric(
-    label="Most Loyal Customer",
-    value=f"Customer {most_loyal['cust_id']}",
-    delta=f"{most_loyal['total_orders']} Orders"
-)
+with left:
+    st.subheader("B. Most Loyal Customers")
+
+    st.markdown("""
+    Revenue is important, but consistency matters too.
+
+    Loyal customers create predictable demand
+    and stabilize business performance.
+
+    This analysis highlights customers who return most frequently.
+    """)
+
+    
 
 fig_loyal = px.bar(
     customer_loyalty,
@@ -176,40 +259,57 @@ fig_loyal.update_layout(
     xaxis_title="Customer ID",
     yaxis_title="Number of Orders"
 )
+with right:
+    st.plotly_chart(
+        fig_loyal,
+        use_container_width=True
+    )
+    st.metric(
+        label="Most Loyal Customer",
+        value=f"Customer {most_loyal['cust_id']}",
+        delta=f"{most_loyal['total_orders']} Orders"
+    )
+    
 
-col2.plotly_chart(fig_loyal, use_container_width=True)
-
-st.caption(
-    "Insight: Loyal customers ensure consistent demand even when order values are smaller."
-)
+st.divider()
 
 # Visualization 1: Revenue by Category
 # -----------------------------------------------------
-st.header(" Category Performance")
+st.header("📦 Category Performance")
 
 st.markdown(
     """
     Category performance analysis helps identify which product categories 
     **drive revenue** and which ones **drive demand volume**.
-    Revenue and quantity do not always move together — a category may sell 
+    Revenue and quantity do not always move together, because a category may sell 
     frequently but contribute less revenue, or vice versa.
     """
 )
 
+left, right = st.columns([1,2])
 
-st.subheader("📊 Revenue Contribution by Category")
-st.markdown(
-        """
-        Categories that contribute **high total revenue**, usually driven by 
-        higher-priced items.
-        """
-    )
+with left:
+    st.subheader("A. Revenue Contribution by Category")
+
+    st.markdown("""
+    Which categories generate the most money?
+
+    Revenue contribution helps identify where the
+    restaurant creates the greatest business value.
+
+    Categories with strong revenue performance may deserve:
+    
+    - Additional promotions
+    - Inventory prioritization
+    - Strategic focus
+    
+    """)
+    
 rev_cat = (
     filtered_df
     .groupby("category", as_index=False)
     .agg(total_revenue=("order_total", "sum"))
 )
-
 fig1 = px.bar(
     rev_cat,
     x="category",
@@ -219,26 +319,53 @@ fig1 = px.bar(
     color="category",
     color_discrete_sequence=px.colors.qualitative.Set1
 )
-
 fig1.update_layout(
     showlegend=False,
     xaxis_title="Category",
     yaxis_title="Total Revenue"
 )
+top_cat = rev_cat.sort_values(
+    "total_revenue",
+    ascending=False
+).iloc[0]
 
-st.plotly_chart(fig1, use_container_width=True)
+lowest_cat = rev_cat.sort_values(
+    "total_revenue"
+).iloc[0]
 
-st.caption(
-    "Insight: Revenue-driven categories may rely on fewer but higher-value transactions."
-)
+with right:
+    st.plotly_chart(fig1, use_container_width=True)
+    st.caption(f"""
+    The restaurant's largest revenue contributor is **{top_cat['category']}**
+    with total revenue of approximately **{top_cat['total_revenue']:,.0f}**.
 
-st.subheader("📦 Sales Volume by Category")
-st.markdown(
-        """
-        Categories that sell **frequently**, even if individual items are lower priced.
+    Meanwhile, **{lowest_cat['category']}** generated the lowest revenue
+    at only **{lowest_cat['total_revenue']:,.0f}**.
 
-        """
-    )
+    This suggests that business value is heavily concentrated in
+    the {top_cat['category']} category, making it a strong candidate
+    for promotional campaigns and strategic investment.
+    """)
+    
+st.divider()
+st.divider()
+
+# Visualization 2: Volume by Category
+# -----------------------------------------------------
+left, right = st.columns([1,2])
+
+with left:
+    st.subheader("B. Sales Volume by Category")
+
+    st.markdown("""
+    Revenue alone doesn't tell the whole story.
+
+    Some categories may generate lower revenue
+    while still driving large order volumes.
+
+    Understanding demand helps support inventory planning.
+    """)
+    
 vol_cat = (
     filtered_df
     .groupby("category", as_index=False)
@@ -261,25 +388,49 @@ fig2.update_layout(
     yaxis_title="Total Quantity Sold"
 )
 
-st.plotly_chart(fig2, use_container_width=True)
+top_vol = vol_cat.sort_values(
+    "total_quantity",
+    ascending=False
+).iloc[0]
 
-st.caption(
-    "Insight: High-volume categories indicate strong demand, even if revenue per item is lower."
-)
+with right:
+    st.plotly_chart(fig2, use_container_width=True)
+    st.markdown(f"""
+    The highest-demand category is **{top_vol['category']}**,
+    with approximately **{top_vol['total_quantity']:,.0f} units sold**.
 
-# Visualization 1: Item Performance Analysis
-# -----------------------------------------------------
-st.header(" Item Performance Analysis")
-
-st.markdown(
-    """
-    Item performance analysis highlights which menu items 
-    **drive sales volume** and which ones **contribute the most revenue** 
-    within each category.
+    Interestingly, demand distribution across categories appears
+    relatively balanced, indicating that customers interact with
+    a broad range of menu offerings rather than relying on a single category.
+    """)
     
-    This helps identify hero items, upsell opportunities, and menu optimization strategies.
-    """
-)
+st.divider()
+st.divider()
+
+
+
+# Visualization 3: Item Performance Analysis
+# -----------------------------------------------------
+st.header("🍔 Item Performance Analysis")
+
+left, right = st.columns([1,2])
+
+with left:
+    st.subheader("A. Item Performance")
+
+    st.markdown("""
+    Category-level insights are useful,
+    but businesses ultimately sell products.
+
+    This analysis identifies which menu items
+    drive customer demand.
+
+    High-performing items can become:
+
+    - Hero products
+    - Promotional anchors
+    - Upselling opportunities
+    """)
 
 item_perf = (
     filtered_df
@@ -306,18 +457,44 @@ fig_item.update_layout(
     yaxis_title="Total Quantity Sold"
 )
 
-st.plotly_chart(fig_item, use_container_width=True)
+best_item = item_perf.sort_values(
+    "total_quantity",
+    ascending=False
+).iloc[0]
+with right:
+    st.plotly_chart(
+        fig_item,
+        use_container_width=True
+    )
+    st.markdown(f"""
+    Among all menu items, **{best_item['item']}**
+    emerges as the strongest performer with total sales of
+    approximately **{best_item['total_quantity']:,.0f} units**.
 
-st.caption(
-    "Insight: This reveals which items actually drive volume inside each category, not just revenue."
-)
+    This item acts as a potential hero product,
+    demonstrating strong customer preference and repeat demand.
+    """)
 
-
+st.divider()
+st.divider()
 
 # -----------------------------------------------------
-# Visualization 3: Orders by Weekday
+# Visualization 4: Orders by Weekday
 # -----------------------------------------------------
-st.subheader("📆 Ordering Pattern by Weekday")
+left, right = st.columns([1,2])
+
+with left:
+    st.subheader("📆 Ordering Pattern")
+
+    st.markdown("""
+    Customer demand varies across the week.
+
+    Understanding peak ordering days helps improve:
+
+    - Staffing allocation
+    - Inventory preparation
+    - Promotional scheduling
+    """)
 
 weekday_order = (
     filtered_df
@@ -341,21 +518,65 @@ fig3.update_layout(
     yaxis_title="Total Orders"
 )
 
-st.plotly_chart(fig3, use_container_width=True)
+best_day = weekday_order.sort_values(
+    "total_orders",
+    ascending=False
+).iloc[0]
+worst_day = weekday_order.sort_values(
+    "total_orders"
+).iloc[0]
 
-st.caption(
-    "Insight: Identify peak ordering days for staffing and promotions."
-)
+with right:
+    st.plotly_chart(
+        fig3,
+        use_container_width=True
+    )
+    st.markdown(f"""
+    Customer activity peaks on **{best_day['weekday']}**
+    with approximately **{best_day['total_orders']} orders**.
+
+    In contrast, **{worst_day['weekday']}**
+    records the lowest transaction volume.
+
+    This pattern suggests that staffing levels,
+    inventory preparation, and promotional campaigns
+    should be adjusted according to daily demand fluctuations.
+    """)
+st.divider()
+st.divider()
+
+# -----------------------------------------------------
+# Visualization 5: Revenue Analysis
+# -----------------------------------------------------
+st.header("📈 Revenue Trend Analysis")
+
+left, right = st.columns([1,2])
+
+with left:
+    st.markdown("""
+    Revenue trends reveal how customer demand changes over time.
+
+    Comparing multiple years helps uncover:
+
+    - Growth patterns
+    - Seasonality
+    - Revenue fluctuations
+
+    These insights support forecasting and strategic planning.
+    """)
+
 
 #DAILY REVENUE
-
-MONTH_MAP = {
+with right:
+    st.info(
+        "Use the month selectors below to compare revenue patterns between years."
+    )
+    MONTH_MAP = {
     1: "January", 2: "February", 3: "March", 4: "April",
     5: "May", 6: "June", 7: "July", 8: "August",
     9: "September", 10: "October", 11: "November", 12: "December"
 }
-st.subheader("📈 Daily Revenue Trend by Year")
-col_2022, col_2023 = st.columns(2)
+    col_2022, col_2023 = st.columns(2)
 with col_2022:
     st.markdown("### 🟦 2022")
 
@@ -381,6 +602,13 @@ with col_2022:
         .groupby("day", as_index=False)
         .agg(daily_revenue=("order_total", "sum"))
     )
+    
+    best_day = daily_rev_2022.loc[
+    daily_rev_2022["daily_revenue"].idxmax()
+]
+    worst_day = daily_rev_2022.loc[
+    daily_rev_2022["daily_revenue"].idxmin()
+]
 
     if daily_rev_2022.empty:
         st.info("No data available for this month.")
@@ -400,6 +628,7 @@ with col_2022:
         )
 
         st.plotly_chart(fig_2022, use_container_width=True)
+        
 with col_2023:
     st.markdown("### 🟩 2023")
 
@@ -425,6 +654,13 @@ with col_2023:
         .groupby("day", as_index=False)
         .agg(daily_revenue=("order_total", "sum"))
     )
+    
+    best_day2023 = daily_rev_2023.loc[
+    daily_rev_2023["daily_revenue"].idxmax()
+]
+    worst_day2023 = daily_rev_2023.loc[
+    daily_rev_2023["daily_revenue"].idxmin()
+]
 
     if daily_rev_2023.empty:
         st.info("No data available for this month.")
@@ -444,10 +680,28 @@ with col_2023:
         )
 
         st.plotly_chart(fig_2023, use_container_width=True)
-st.caption(
-    "Insight: Side-by-side daily revenue trends reveal year-over-year demand shifts and seasonal patterns."
-)
 
+with col_2022: 
+    st.caption(f"""
+The strongest performance occurred on
+**{best_day['day']}** with revenue reaching approximately
+**${best_day['daily_revenue']:,.0f}**.
+
+Meanwhile, the weakest day was
+**{worst_day['day']}**, generating only
+**${worst_day['daily_revenue']:,.0f}**.
+""")
+    
+with col_2023: 
+    st.caption(f"""
+The strongest performance occurred on
+**{best_day2023['day']}** with revenue reaching approximately
+**${best_day2023['daily_revenue']:,.0f}**.
+
+Meanwhile, the weakest day was
+**{worst_day2023['day']}**, generating only
+**${worst_day2023['daily_revenue']:,.0f}**.
+""")
 
 # -----------------------------------------------------
 # Footer
